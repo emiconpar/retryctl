@@ -1,68 +1,78 @@
-"""CLI entry-point for retryctl."""
+"""Command-line interface for retryctl."""
+
+from __future__ import annotations
 
 import sys
-from typing import List
 
 import click
 
-from retryctl.runner import run_command
+from retryctl.formatter import OutputFormat, format_result
+from retryctl.runner import build_executor, run_command
 
 
-@click.command(context_settings={"ignore_unknown_options": True})
-@click.option("--attempts", default=3, show_default=True, help="Maximum retry attempts.")
-@click.option("--strategy", default="exponential", show_default=True,
-              type=click.Choice(["fixed", "linear", "exponential"]),
-              help="Backoff strategy.")
-@click.option("--base-delay", default=1.0, show_default=True, help="Base delay in seconds.")
-@click.option("--max-delay", default=60.0, show_default=True, help="Maximum delay in seconds.")
-@click.option("--multiplier", default=2.0, show_default=True, help="Multiplier for exponential backoff.")
-@click.option("--jitter", is_flag=True, default=False, help="Add random jitter to delays.")
-@click.option("--timeout", default=None, type=float, help="Per-attempt timeout in seconds.")
-@click.option("--retry-on", "retry_on_codes", default="", help="Comma-separated exit codes to retry on.")
-@click.option("--stop-on", "stop_on_codes", default="", help="Comma-separated exit codes to stop on.")
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("command", nargs=-1, required=True)
+@click.option(
+    "--max-attempts",
+    default=3,
+    show_default=True,
+    help="Maximum number of execution attempts.",
+)
+@click.option(
+    "--strategy",
+    default="exponential",
+    show_default=True,
+    type=click.Choice(["fixed", "linear", "exponential"], case_sensitive=False),
+    help="Backoff strategy between retries.",
+)
+@click.option(
+    "--base-delay",
+    default=1.0,
+    show_default=True,
+    help="Base delay in seconds between retries.",
+)
+@click.option(
+    "--max-delay",
+    default=60.0,
+    show_default=True,
+    help="Maximum delay in seconds between retries.",
+)
+@click.option(
+    "--retry-on",
+    multiple=True,
+    type=int,
+    metavar="CODE",
+    help="Exit code(s) that trigger a retry (default: any non-zero).",
+)
+@click.option(
+    "--output",
+    default="text",
+    show_default=True,
+    type=click.Choice(["text", "json", "quiet"], case_sensitive=False),
+    help="Output format for execution summary.",
+)
 def main(
-    attempts: int,
+    command: tuple[str, ...],
+    max_attempts: int,
     strategy: str,
     base_delay: float,
     max_delay: float,
-    multiplier: float,
-    jitter: bool,
-    timeout,
-    retry_on_codes: str,
-    stop_on_codes: str,
-    command,
+    retry_on: tuple[int, ...],
+    output: str,
 ) -> None:
-    """Wrap COMMAND with retry logic and configurable backoff."""
-    retry_codes = [int(c) for c in retry_on_codes.split(",") if c.strip()]
-    stop_codes = [int(c) for c in stop_on_codes.split(",") if c.strip()]
-
-    result = run_command(
-        list(command),
+    """Wrap COMMAND with configurable retry logic and backoff strategies."""
+    executor = build_executor(
+        max_attempts=max_attempts,
         strategy=strategy,
         base_delay=base_delay,
         max_delay=max_delay,
-        multiplier=multiplier,
-        jitter=jitter,
-        max_attempts=attempts,
-        retry_on_codes=retry_codes,
-        stop_on_codes=stop_codes,
-        timeout=timeout,
+        retry_on_codes=list(retry_on) if retry_on else None,
     )
+    result = run_command(executor, list(command))
 
-    if result.stdout:
-        click.echo(result.stdout, nl=False)
-    if result.stderr:
-        click.echo(result.stderr, nl=False, err=True)
+    fmt = OutputFormat(output.lower())
+    summary = format_result(result, fmt)
+    if summary:
+        click.echo(summary)
 
-    status = "succeeded" if result.succeeded else "failed"
-    click.echo(
-        f"[retryctl] command {status} after {result.attempts} attempt(s) "
-        f"in {result.elapsed:.2f}s (exit code {result.returncode})",
-        err=True,
-    )
-    sys.exit(result.returncode)
-
-
-if __name__ == "__main__":
-    main()
+    sys.exit(result.exit_code)
