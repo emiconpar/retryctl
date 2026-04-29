@@ -49,3 +49,24 @@ def format_result(result: ExecutionResult, fmt: OutputFormat) -> str:
     if result.stderr:
         lines.append(f"Stderr   :\n{result.stderr.rstrip()}")
     return "\n".join(lines)
+
+
+def parse_output_format(value: str) -> OutputFormat:
+    """Parse a string into an OutputFormat, raising ValueError on unknown values.
+
+    Args:
+        value: Case-insensitive format name (e.g. ``"text"``, ``"json"``, ``"quiet"``).
+
+    Returns:
+        The matching :class:`OutputFormat` member.
+
+    Raises:
+        ValueError: If *value* does not correspond to any known format.
+    """
+    try:
+        return OutputFormat(value.lower())
+    except ValueError:
+        valid = ", ".join(f.value for f in OutputFormat)
+        raise ValueError(
+            f"Unknown output format {value!r}. Valid options are: {valid}"
+        ) from None
