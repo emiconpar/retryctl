@@ -38,6 +38,14 @@ class TestTimeoutConfig:
         with pytest.raises(ValueError, match="total"):
             TimeoutConfig(total=-1.0)
 
+    def test_zero_total_raises(self):
+        with pytest.raises(ValueError, match="total"):
+            TimeoutConfig(total=0)
+
+    def test_negative_per_attempt_raises(self):
+        with pytest.raises(ValueError, match="per_attempt"):
+            TimeoutConfig(per_attempt=-0.5)
+
 
 # ---------------------------------------------------------------------------
 # attempt_timeout
@@ -68,6 +76,15 @@ class TestAttemptTimeout:
         with attempt_timeout(10.0):
             pass
         # Verify the alarm was cancelled (remaining time should be 0)
+        remaining = signal.getitimer(signal.ITIMER_REAL)[0]
+        assert remaining == 0.0
+
+    def test_alarm_cleared_after_exception(self):
+        """Ensure the alarm is cancelled even when a non-timeout exception occurs."""
+        import signal
+        with pytest.raises(RuntimeError):
+            with attempt_timeout(10.0):
+                raise RuntimeError("unexpected error")
         remaining = signal.getitimer(signal.ITIMER_REAL)[0]
         assert remaining == 0.0
 
