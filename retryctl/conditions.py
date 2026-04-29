@@ -42,6 +42,24 @@ class RetryCondition:
 
         return returncode in self.retry_on_codes
 
+    def describe(self) -> str:
+        """Return a human-readable summary of this retry condition.
+
+        Useful for logging and debugging to understand what policy is active.
+
+        Returns:
+            A short string describing the active retry policy.
+        """
+        if self.retry_on_any_error:
+            policy = "retry on any error"
+        elif self.retry_on_codes:
+            policy = f"retry on exit codes {sorted(self.retry_on_codes)}"
+        else:
+            policy = "no retry"
+
+        signal_policy = "ignore signals" if self.never_retry_on_signals else "allow signal retries"
+        return f"{policy}, {signal_policy}"
+
 
 def build_condition(
     retry_on_codes: Optional[list[int]] = None,
