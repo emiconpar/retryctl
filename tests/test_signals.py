@@ -33,6 +33,12 @@ class TestSignalInfo:
         info = SignalInfo.from_signum(signal.SIGUSR1)
         assert info.is_fatal is False
 
+    def test_repr_contains_name_and_signum(self):
+        info = SignalInfo.from_signum(signal.SIGTERM)
+        r = repr(info)
+        assert "SIGTERM" in r
+        assert str(int(signal.SIGTERM)) in r
+
 
 class TestExitCodeFromReturncode:
     def test_normal_exit_zero(self):
@@ -62,6 +68,12 @@ class TestExitCodeFromReturncode:
         assert sig_info is not None
         assert sig_info.is_fatal is False
 
+    def test_large_normal_exit_code(self):
+        """Exit codes above 128 from the process itself should not be treated as signals."""
+        code, sig_info = exit_code_from_returncode(130)
+        assert code == 130
+        assert sig_info is None
+
 
 class TestShouldRetryOnSignal:
     def test_no_signal_returns_false(self):
@@ -77,4 +89,9 @@ class TestShouldRetryOnSignal:
 
     def test_non_fatal_signal_no_retry_when_disabled(self):
         info = SignalInfo.from_signum(signal.SIGUSR1)
+        assert should_retry_on_signal(info, retry_on_signals=False) is False
+
+    def test_fatal_signal_no_retry_when_disabled(self):
+        """Fatal signals should never retry regardless of the retry_on_signals flag."""
+        info = SignalInfo.from_signum(signal.SIGKILL)
         assert should_retry_on_signal(info, retry_on_signals=False) is False
