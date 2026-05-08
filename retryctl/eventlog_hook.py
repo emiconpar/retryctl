@@ -6,6 +6,14 @@ from retryctl.hooks import HookRegistry
 
 
 def attach_eventlog_hooks(registry: HookRegistry, log: EventLog) -> None:
+    """Register all lifecycle hooks that record events into *log*.
+
+    Four hook types are attached:
+    - ``attempt_failure``: recorded each time an attempt exits with a non-zero code.
+    - ``retry``: recorded just before a retry delay begins.
+    - ``final_failure``: recorded when all attempts are exhausted.
+    - ``success``: recorded when an attempt exits successfully.
+    """
     registry.register_on_attempt_failure(_make_on_attempt_failure(log))
     registry.register_on_retry(_make_on_retry(log))
     registry.register_on_final_failure(_make_on_final_failure(log))
