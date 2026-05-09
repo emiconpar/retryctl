@@ -66,3 +66,14 @@ class ExitMapper:
             return f"ExitMapper(default={self._config.default_label!r}, no explicit mappings)"
         pairs = ", ".join(f"{c}={l!r}" for c, l in sorted(self._config.mapping.items()))
         return f"ExitMapper(default={self._config.default_label!r}, {pairs})"
+
+    def lookup_many(self, codes: list[int]) -> Dict[int, ExitCodeLabel]:
+        """Look up labels for multiple exit codes at once.
+
+        Args:
+            codes: A list of exit codes to resolve.
+
+        Returns:
+            A dict mapping each code to its :class:`ExitCodeLabel`.
+        """
+        return {code: self.lookup(code) for code in codes}
