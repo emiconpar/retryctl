@@ -70,3 +70,11 @@ class TestAttachSnapshotHooks:
         self.registry.fire_on_success(ok_result, _make_ctx(attempt_number=3))
         assert self.snapshot.total_attempts() == 3
         assert self.snapshot.final_succeeded is True
+
+    def test_retry_without_prior_failure_does_not_raise(self):
+        """Firing on_retry with no recorded entries should not raise an error."""
+        result = _make_result()
+        ctx = _make_ctx(attempt_number=1, next_delay=1.0)
+        # Should not raise even if there are no entries yet
+        self.registry.fire_on_retry(result, ctx)
+        assert self.snapshot.total_attempts() == 0
