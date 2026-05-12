@@ -77,3 +77,14 @@ class TestCheckpointStore:
         store.save(_make_state())
         assert not (tmp_path / "checkpoint.tmp").exists()
         assert path.exists()
+
+    def test_save_overwrites_existing_checkpoint(self, tmp_path):
+        """Saving a new state replaces the previous one entirely."""
+        path = tmp_path / "checkpoint.json"
+        store = CheckpointStore(path)
+        store.save(_make_state(attempt=1, total_delay=0.5))
+        store.save(_make_state(attempt=5, total_delay=9.0))
+        loaded = store.load()
+        assert loaded is not None
+        assert loaded.attempt == 5
+        assert loaded.total_delay == 9.0
